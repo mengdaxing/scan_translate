@@ -4,6 +4,23 @@
 
 `scan_translate` (字幕宝) is an open-source Android overlay for translating subtitles while watching shows in other languages. It was created to make language learning more convenient: place the scan box over the subtitle, and the translated text appears above it.
 
+## Teaser
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="static/teaser-step-1.jpg" alt="Scan area positioned over the subtitle" width="100%" />
+      <br />
+      <sub>1. Set up scan area</sub>
+    </td>
+    <td align="center">
+      <img src="static/teaser-step-2.jpg" alt="Scan area hidden after confirmation" width="100%" />
+      <br />
+      <sub>2. Confirm to hide the scan area</sub>
+    </td>
+  </tr>
+</table>
+
 ## Features
 
 - A floating ball stays above other apps. It starts inactive at full opacity; tap it to enter the active state at 50% opacity, show the scan box, and start OCR and translation. Tap it again to hide the box and stop OCR and translation.
