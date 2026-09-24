@@ -4,12 +4,11 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.TextView
 import kotlin.math.roundToInt
 
 /** A movable/resizable overlay rectangle. The button commits the current geometry. */
@@ -37,21 +36,20 @@ class ScanBoxView(
     private var baseY = 0
     private var baseW = 0
     private var baseH = 0
+    private val resizeHandleSize = 48f
+    private val resizeHitSize = 144f
 
     init {
         setWillNotDraw(false)
         setBackgroundColor(Color.argb(28, 99, 102, 241))
-        val confirm = Button(context).apply {
+        val confirm = TextView(context).apply {
             text = context.getString(R.string.confirm)
             textSize = 26f
             contentDescription = "Confirm scan area"
+            gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             setPadding(0, 0, 0, 0)
-            minWidth = 0
-            minHeight = 0
-            background = GradientDrawable().apply {
-                setColor(Color.rgb(79, 70, 229)); cornerRadius = 12f
-            }
+            setBackgroundColor(Color.TRANSPARENT)
             setOnClickListener { onConfirm() }
         }
         val density = resources.displayMetrics.density
@@ -64,7 +62,7 @@ class ScanBoxView(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawRect(2f, 2f, width - 2f, height - 2f, borderPaint)
-        canvas.drawRect(width - 28f, height - 28f, width - 4f, height - 4f, handlePaint)
+        canvas.drawRect(width - resizeHandleSize - 4f, height - resizeHandleSize - 4f, width - 4f, height - 4f, handlePaint)
         canvas.drawText(hintText, 12f, 28f * resources.displayMetrics.density, hintPaint)
     }
 
@@ -84,7 +82,7 @@ class ScanBoxView(
                 downX = event.rawX; downY = event.rawY
                 baseX = params.x; baseY = params.y
                 baseW = params.width; baseH = params.height
-                resizing = event.x > width - 72 && event.y > height - 72
+                resizing = event.x > width - resizeHitSize && event.y > height - resizeHitSize
                 moving = !resizing
                 return true
             }
