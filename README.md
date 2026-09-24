@@ -6,9 +6,8 @@
 
 ## Features
 
-- A floating ball stays above other apps and toggles the scan box.
+- A floating ball stays above other apps. It starts inactive at full opacity; tap it to enter the active state at 50% opacity, show the scan box, and start OCR and translation. Tap it again to hide the box and stop OCR and translation.
 - Drag the scan box to move it, or drag its bottom-right handle to resize it. The last position and size are saved.
-- Confirm the box with the button on its right. The box then hides while OCR continues at the configured interval.
 - A new translation is requested only when the recognized text changes.
 - On-device ML Kit OCR and translation are used by default. DeepL API is also available as an optional engine.
 - Configure source and target languages, font size, text color, OCR interval, and translation display duration.
@@ -18,7 +17,7 @@
 1. Open the project in Android Studio Hedgehog or newer and wait for Gradle sync.
 2. Run it on Android 8.0 (API 26) or newer.
 3. In the settings screen, grant the permission to display over other apps and approve screen capture.
-4. Tap the floating ball, position the scan box over the subtitle, and tap `✓`.
+4. Tap the floating ball to activate it, position the scan box over the subtitle, and tap the ball again when you want to stop scanning.
 5. The first use of an on-device translation language pair downloads its model. Wi-Fi is recommended for this download.
 
 DeepL requests use `https://api-free.deepl.com/v2/translate`. The API key is stored only in the device's SharedPreferences and is never committed to this repository.
@@ -27,7 +26,7 @@ DeepL requests use `https://api-free.deepl.com/v2/translate`. The API key is sto
 
 - `MainActivity`: settings screen, permissions, and MediaProjection authorization.
 - `OverlayService`: foreground service, floating ball, scan box, screen frames, OCR, translation, and result display.
-- `ScanBoxView`: scan box movement, resizing, and confirmation interaction.
+- `ScanBoxView`: scan box movement, resizing, and geometry save interaction.
 - `AppPrefs`: persistent user settings and scan box geometry.
 
 Screen capture uses Android MediaProjection. OCR and the default translation engine run on the device. The app does not save full screenshots; it keeps the current frame in memory only long enough to crop the selected scan area.

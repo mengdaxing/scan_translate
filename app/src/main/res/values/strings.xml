@@ -14,6 +14,6 @@
     <string name="display_duration">翻译显示时间（毫秒）</string>
     <string name="permission_hint">需要“在其他应用上层显示”和屏幕捕获权限，才能识别正在播放的字幕。</string>
     <string name="start_capture">启动屏幕捕获</string>
-    <string name="confirm">确认</string>
-    <string name="scan_hint">拖动边框移动，拖动右下角调整大小</string>
+    <string name="confirm">✅</string>
+    <string name="scan_hint">Drag to move • resize</string>
 </resources>

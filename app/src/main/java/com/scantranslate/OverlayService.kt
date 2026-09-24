@@ -11,7 +11,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.drawable.GradientDrawable
+import android.graphics.Rect
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.ImageReader
@@ -23,8 +23,10 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
+import android.util.DisplayMetrics
 import android.view.View
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import com.google.mlkit.common.model.DownloadConditions
@@ -36,6 +38,8 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,6 +50,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Response
+import java.io.IOException
+import kotlin.coroutines.resume
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -53,10 +62,12 @@ import org.json.JSONObject
 import java.nio.ByteBuffer
 import kotlin.math.max
 import kotlin.math.min
+import android.util.Log
 
 class OverlayService : Service() {
+    private val logTag = "OverlayService"
     private lateinit var windowManager: WindowManager
-    private lateinit var ball: TextView
+    private lateinit var ball: ImageView
     private var scanBox: ScanBoxView? = null
     private var translationView: TextView? = null
     private lateinit var boxParams: WindowManager.LayoutParams
@@ -65,15 +76,21 @@ class OverlayService : Service() {
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
     @Volatile private var latestBitmap: Bitmap? = null
+    private var captureWidth = 0
+    private var captureHeight = 0
     private var scanJob: Job? = null
+    private var overlayActive = false
+    private var scanGeneration = 0L
     private val serviceJob = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.Main.immediate + serviceJob)
     private val mainHandler = Handler(Looper.getMainLooper())
     private var lastText = ""
+    private var translatorReady = false
     private var translator: Translator? = null
     private val httpClient = OkHttpClient()
     private val projectionCallback = object : MediaProjection.Callback() {
         override fun onStop() {
+            deactivate()
             virtualDisplay?.release()
             virtualDisplay = null
             imageReader?.close()
@@ -105,34 +122,56 @@ class OverlayService : Service() {
     }
 
     private fun addBall() {
-        ball = TextView(this).apply {
-            text = "译"
-            textSize = 16f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.rgb(79, 70, 229))
-            }
-            setOnClickListener { toggleScanBox() }
+        ball = ImageView(this).apply {
+            setImageResource(R.drawable.ic_launcher_foreground)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            contentDescription = getString(R.string.app_name)
+            alpha = 1f
+            setOnClickListener { toggleActiveState() }
             elevation = 12f
         }
         val p = overlayParams(64, 64).apply { x = 18; y = 240; gravity = Gravity.TOP or Gravity.START }
         windowManager.addView(ball, p)
     }
 
-    private fun toggleScanBox() {
-        if (scanBox != null) {
-            scanBox?.let { windowManager.removeView(it) }
-            scanBox = null
-            return
-        }
-        val view = ScanBoxView(this, { confirmBox() }) { dx, dy, dw, dh ->
-            boxParams.x += dx; boxParams.y += dy
-            boxParams.width = (boxParams.width + dw).coerceIn(260, screenWidth())
-            boxParams.height = (boxParams.height + dh).coerceIn(100, screenHeight())
-            boxParams.x = boxParams.x.coerceIn(0, max(0, screenWidth() - boxParams.width))
-            boxParams.y = boxParams.y.coerceIn(0, max(0, screenHeight() - boxParams.height))
+    private fun toggleActiveState() {
+        if (overlayActive) deactivate() else activate()
+    }
+
+    private fun activate() {
+        if (overlayActive) return
+        overlayActive = true
+        scanGeneration++
+        ball.alpha = 0.5f
+        showScanBox()
+        startScanning()
+    }
+
+    private fun deactivate() {
+        if (!overlayActive) return
+        overlayActive = false
+        scanGeneration++
+        ball.alpha = 1f
+        scanJob?.cancel()
+        scanJob = null
+        translator?.close()
+        translator = null
+        latestBitmap = null
+        lastText = ""
+        translatorReady = false
+        hideTranslation()
+        scanBox?.let { windowManager.removeView(it) }
+        scanBox = null
+    }
+
+    private fun showScanBox() {
+        if (scanBox != null) return
+        val view = ScanBoxView(this, { confirmScanBox() }) { x, y, width, height ->
+            boxParams.width = width.coerceIn(260, screenWidth())
+            boxParams.height = height.coerceIn(100, screenHeight())
+            boxParams.x = x.coerceIn(0, max(0, screenWidth() - boxParams.width))
+            boxParams.y = y.coerceIn(0, max(0, screenHeight() - boxParams.height))
+            AppPrefs.saveBox(this, boxParams.x, boxParams.y, boxParams.width, boxParams.height)
             scanBox?.let { windowManager.updateViewLayout(it, boxParams) }
         }
         scanBox = view
@@ -143,35 +182,58 @@ class OverlayService : Service() {
         windowManager.addView(view, boxParams)
     }
 
-    private fun confirmBox() {
+    private fun confirmScanBox() {
         val box = scanBox ?: return
         AppPrefs.saveBox(this, boxParams.x, boxParams.y, boxParams.width, boxParams.height)
-        windowManager.removeView(box); scanBox = null
-        startScanning()
+        Log.i(logTag, "scan box saved: x=${boxParams.x}, y=${boxParams.y}, w=${boxParams.width}, h=${boxParams.height}")
+        windowManager.removeView(box)
+        scanBox = null
     }
 
     private fun startScanning() {
-        if (scanJob?.isActive == true) return
+        if (!overlayActive || scanJob?.isActive == true) return
+        val generation = scanGeneration
         scanJob = scope.launch {
             val recognizer = if (AppPrefs.source(this@OverlayService) == "zh") {
                 TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
             } else TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             try {
-                while (isActive) {
+                while (isActive && overlayActive && generation == scanGeneration) {
                     latestBitmap?.let { bitmap ->
                         val crop = cropBitmap(bitmap)
                         if (crop != null) {
                             val result = recognizer.process(InputImage.fromBitmap(crop, 0)).await()
                             val text = result.text.trim().replace(Regex("\\s+"), " ")
+                            if (!overlayActive || generation != scanGeneration ||
+                                !kotlinx.coroutines.currentCoroutineContext().isActive
+                            ) return@launch
+                            Log.d(logTag, "OCR frame=${bitmap.width}x${bitmap.height}, crop=${crop.width}x${crop.height}, text=${text.take(120)}")
                             if (text.isNotEmpty() && text != lastText) {
+                                // The same subtitle can remain on screen for many frames.
+                                // Do not start another translation request for it.
                                 lastText = text
+                                if (AppPrefs.engine(this@OverlayService) != "deepl" &&
+                                    AppPrefs.source(this@OverlayService) != AppPrefs.target(this@OverlayService) &&
+                                    !translatorReady
+                                ) {
+                                    showTranslation("正在准备翻译模型…", generation)
+                                }
                                 val translated = translate(text)
-                                showTranslation(translated)
+                                if (!overlayActive || generation != scanGeneration ||
+                                    !kotlinx.coroutines.currentCoroutineContext().isActive
+                                ) return@launch
+                                translatorReady = true
+                                Log.i(logTag, "translation ready: ${translated.take(120)}")
+                                showTranslation(translated, generation)
                             }
                         }
                     }
                     delay(AppPrefs.interval(this@OverlayService))
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.e(logTag, "OCR scan stopped", error)
             } finally { recognizer.close() }
         }
     }
@@ -190,6 +252,8 @@ class OverlayService : Service() {
                 translator?.close(); translator = Translation.getClient(options)
                 translator!!.downloadModelIfNeeded(DownloadConditions.Builder().build()).await()
                 translator!!.translate(text).await()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) { text }
         }
     }
@@ -201,29 +265,60 @@ class OverlayService : Service() {
             val request = Request.Builder().url("https://api-free.deepl.com/v2/translate")
                 .addHeader("Authorization", "DeepL-Auth-Key ${AppPrefs.deeplKey(this@OverlayService)}")
                 .post(body).build()
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext text
-                val value = JSONObject(response.body?.string().orEmpty()).getJSONArray("translations").getJSONObject(0).getString("text")
-                value
+            suspendCancellableCoroutine { continuation ->
+                val call = httpClient.newCall(request)
+                continuation.invokeOnCancellation { call.cancel() }
+                call.enqueue(object : Callback {
+                    override fun onFailure(call: Call, error: IOException) {
+                        if (continuation.isActive) continuation.resume(text)
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        val translated = response.use {
+                            runCatching {
+                                if (it.isSuccessful) {
+                                    JSONObject(it.body?.string().orEmpty())
+                                        .getJSONArray("translations").getJSONObject(0).getString("text")
+                                } else text
+                            }.getOrDefault(text)
+                        }
+                        if (continuation.isActive) continuation.resume(translated)
+                    }
+                })
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) { text }
     }
 
-    private fun showTranslation(text: String) {
+    private fun hideTranslation() {
+        translationView?.let { windowManager.removeView(it) }
+        translationView = null
+    }
+
+    private fun showTranslation(text: String, generation: Long) {
         mainHandler.post {
+            if (!overlayActive || generation != scanGeneration) return@post
             translationView?.let { windowManager.removeView(it) }
             val view = TextView(this).apply {
                 this.text = text
                 textSize = AppPrefs.fontSize(this@OverlayService).toFloat()
                 setTextColor(AppPrefs.fontColor(this@OverlayService))
                 setShadowLayer(5f, 2f, 2f, Color.BLACK)
+                gravity = Gravity.CENTER
+                textAlignment = View.TEXT_ALIGNMENT_CENTER
                 setPadding(10, 5, 10, 5)
                 setBackgroundColor(Color.argb(180, 0, 0, 0))
             }
             val x = AppPrefs.boxX(this); val y = max(0, AppPrefs.boxY(this) - dp(56))
-            translationParams = overlayParams(-2, -2).apply { this.x = x; this.y = y; gravity = Gravity.TOP or Gravity.START }
+            translationParams = overlayParams(AppPrefs.boxW(this).coerceAtLeast(1), -2).apply { this.x = x; this.y = y; gravity = Gravity.TOP or Gravity.START }
             translationView = view; windowManager.addView(view, translationParams)
-            mainHandler.postDelayed({ translationView?.let { windowManager.removeView(it); translationView = null } }, AppPrefs.duration(this))
+            mainHandler.postDelayed({
+                if (translationView === view) {
+                    windowManager.removeView(view)
+                    translationView = null
+                }
+            }, AppPrefs.duration(this))
         }
     }
 
@@ -232,10 +327,24 @@ class OverlayService : Service() {
         val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         projection = manager.getMediaProjection(resultCode, data)
         projection!!.registerCallback(projectionCallback, mainHandler)
-        val metrics = resources.displayMetrics
+        val metrics = DisplayMetrics()
+        if (Build.VERSION.SDK_INT >= 30) {
+            val bounds = windowManager.currentWindowMetrics.bounds
+            metrics.widthPixels = bounds.width()
+            metrics.heightPixels = bounds.height()
+            metrics.densityDpi = resources.displayMetrics.densityDpi
+            metrics.density = resources.displayMetrics.density
+            metrics.scaledDensity = resources.displayMetrics.scaledDensity
+        } else {
+            @Suppress("DEPRECATION") windowManager.defaultDisplay.getRealMetrics(metrics)
+        }
+        captureWidth = metrics.widthPixels
+        captureHeight = metrics.heightPixels
+        Log.i(logTag, "starting projection with capture=${captureWidth}x${captureHeight}")
         imageReader = ImageReader.newInstance(metrics.widthPixels, metrics.heightPixels, PixelFormat.RGBA_8888, 2)
         imageReader!!.setOnImageAvailableListener({ reader ->
             reader.acquireLatestImage()?.use { image ->
+                if (!overlayActive) return@use
                 val plane = image.planes[0]; val buffer = plane.buffer
                 val width = image.width; val height = image.height
                 val bitmap = Bitmap.createBitmap(width + plane.rowStride / plane.pixelStride - width, height, Bitmap.Config.ARGB_8888)
@@ -257,11 +366,17 @@ class OverlayService : Service() {
     }
 
     private fun overlayParams(width: Int, height: Int) = WindowManager.LayoutParams(width, height, if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, PixelFormat.TRANSLUCENT)
-    private fun screenWidth() = resources.displayMetrics.widthPixels
-    private fun screenHeight() = resources.displayMetrics.heightPixels
+    private fun displayBounds(): Rect {
+        return if (Build.VERSION.SDK_INT >= 30) windowManager.currentWindowMetrics.bounds
+        else Rect(0, 0, captureWidth, captureHeight)
+    }
+    private fun screenWidth() = displayBounds().width()
+    private fun screenHeight() = displayBounds().height()
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
     override fun onDestroy() {
+        deactivate()
+        mainHandler.removeCallbacksAndMessages(null)
         scanJob?.cancel(); serviceJob.cancel(); translator?.close(); virtualDisplay?.release()
         projection?.unregisterCallback(projectionCallback)
         projection?.stop(); imageReader?.close(); latestBitmap?.recycle()
@@ -276,7 +391,7 @@ class OverlayService : Service() {
     }
     private fun notification(): Notification {
         val pending = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return NotificationCompat.Builder(this, CHANNEL).setContentTitle("字幕宝正在运行").setContentText("点击悬浮球打开扫描框").setSmallIcon(R.drawable.ic_launcher_foreground).setContentIntent(pending).setOngoing(true).build()
+        return NotificationCompat.Builder(this, CHANNEL).setContentTitle("字幕宝正在运行").setContentText("点击悬浮球开始或停止 OCR").setSmallIcon(R.drawable.ic_launcher_foreground).setContentIntent(pending).setOngoing(true).build()
     }
 
     companion object {

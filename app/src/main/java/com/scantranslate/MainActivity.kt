@@ -35,7 +35,69 @@ class MainActivity : AppCompatActivity() {
     private lateinit var intervalLabel: TextView
     private lateinit var durationLabel: TextView
 
-    private val languages = listOf("English" to "en", "简体中文" to "zh", "日本語" to "ja", "한국어" to "ko", "Français" to "fr", "Deutsch" to "de", "Español" to "es")
+    // Keep this list in sync with ML Kit TranslateLanguage (translate:17.0.3).
+    // These are the language tags accepted by the on-device translation model.
+    private val languages = listOf(
+        "English" to "en",
+        "简体中文" to "zh",
+        "日本語" to "ja",
+        "한국어" to "ko",
+        "Français" to "fr",
+        "Deutsch" to "de",
+        "Español" to "es",
+        "Afrikaans" to "af",
+        "Shqip" to "sq",
+        "العربية" to "ar",
+        "Беларуская" to "be",
+        "বাংলা" to "bn",
+        "Български" to "bg",
+        "Català" to "ca",
+        "Hrvatski" to "hr",
+        "Čeština" to "cs",
+        "Dansk" to "da",
+        "Nederlands" to "nl",
+        "Esperanto" to "eo",
+        "Eesti" to "et",
+        "Suomi" to "fi",
+        "Galego" to "gl",
+        "ქართული" to "ka",
+        "Ελληνικά" to "el",
+        "ગુજરાતી" to "gu",
+        "Kreyòl ayisyen" to "ht",
+        "עברית" to "he",
+        "हिन्दी" to "hi",
+        "Magyar" to "hu",
+        "Íslenska" to "is",
+        "Bahasa Indonesia" to "id",
+        "Gaeilge" to "ga",
+        "Italiano" to "it",
+        "ಕನ್ನಡ" to "kn",
+        "Lietuvių" to "lt",
+        "Latviešu" to "lv",
+        "Македонски" to "mk",
+        "मराठी" to "mr",
+        "Bahasa Melayu" to "ms",
+        "Malti" to "mt",
+        "Norsk" to "no",
+        "فارسی" to "fa",
+        "Polski" to "pl",
+        "Português" to "pt",
+        "Română" to "ro",
+        "Русский" to "ru",
+        "Slovenčina" to "sk",
+        "Slovenščina" to "sl",
+        "Svenska" to "sv",
+        "Kiswahili" to "sw",
+        "Filipino" to "tl",
+        "தமிழ்" to "ta",
+        "తెలుగు" to "te",
+        "ไทย" to "th",
+        "Türkçe" to "tr",
+        "Українська" to "uk",
+        "اردو" to "ur",
+        "Tiếng Việt" to "vi",
+        "Cymraeg" to "cy"
+    )
     private val colors = listOf("白色" to Color.WHITE, "黄色" to Color.YELLOW, "绿色" to Color.rgb(134, 239, 172), "青色" to Color.CYAN)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +132,7 @@ class MainActivity : AppCompatActivity() {
         fontSize = edit(getString(R.string.font_size), AppPrefs.fontSize(this).toString(), true).also { root.addView(it) }
         root.addView(TextView(this).apply { text = "文字颜色" })
         color = spinner(colors.map { it.first }, colors.indexOfFirst { it.second == AppPrefs.fontColor(this) }.coerceAtLeast(0)).also { root.addView(it) }
-        interval = seekRow(root, getString(R.string.ocr_interval), 200, 3000, AppPrefs.interval(this).toInt()).also { intervalLabel = it.tag as TextView }
+        interval = seekRow(root, getString(R.string.ocr_interval), 10, 1000, AppPrefs.interval(this).toInt()).also { intervalLabel = it.tag as TextView }
         duration = seekRow(root, getString(R.string.display_duration), 500, 10000, AppPrefs.duration(this).toInt()).also { durationLabel = it.tag as TextView }
 
         val save = Button(this).apply { text = getString(R.string.save_settings); setOnClickListener { saveSettings() } }
@@ -124,7 +186,7 @@ class MainActivity : AppCompatActivity() {
             .putString("deepl_key", apiKey.text.toString().trim())
             .putInt("font_size", size)
             .putInt("font_color", colors[color.selectedItemPosition].second)
-            .putLong("ocr_interval", (interval.progress + 200).toLong())
+            .putLong("ocr_interval", (interval.progress + 10).toLong())
             .putLong("display_duration", (duration.progress + 500).toLong()).apply()
         Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show()
     }
@@ -149,7 +211,7 @@ class MainActivity : AppCompatActivity() {
                 putExtra(OverlayService.EXTRA_DATA, data)
             }
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
-            status.text = "悬浮球已启动：点悬浮球打开扫描框"
+            status.text = "悬浮球已启动（未激活）：点击开始识别和翻译，再次点击停止"
         }
     }
 

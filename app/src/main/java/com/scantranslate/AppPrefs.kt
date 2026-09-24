@@ -25,7 +25,7 @@ object AppPrefs {
     fun deeplKey(context: Context) = prefs(context).getString(KEY, "") ?: ""
     fun fontSize(context: Context) = prefs(context).getInt(FONT, 20)
     fun fontColor(context: Context) = prefs(context).getInt(COLOR, Color.WHITE)
-    fun interval(context: Context) = prefs(context).getLong(INTERVAL, 800L)
+    fun interval(context: Context) = prefs(context).getLong(INTERVAL, 800L).coerceIn(10L, 1000L)
     fun duration(context: Context) = prefs(context).getLong(DURATION, 3500L)
     fun boxX(context: Context) = prefs(context).getInt(BOX_X, 80)
     fun boxY(context: Context) = prefs(context).getInt(BOX_Y, 360)
