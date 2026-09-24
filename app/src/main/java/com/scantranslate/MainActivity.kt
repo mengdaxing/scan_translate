@@ -102,7 +102,7 @@ class MainActivity : AppCompatActivity() {
     private fun seekRow(root: LinearLayout, label: String, min: Int, max: Int, value: Int): SeekBar {
         val valueLabel = TextView(this).apply { text = "$label：${value}ms" }
         root.addView(valueLabel)
-        val bar = SeekBar(this).apply { max = max - min; progress = (value - min).coerceIn(0, max - min) }
+        val bar = SeekBar(this).apply { this.max = max - min; progress = (value - min).coerceIn(0, max - min) }
         bar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
                 valueLabel.text = "$label：${progress + min}ms"
