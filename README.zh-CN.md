@@ -4,6 +4,23 @@
 
 字幕宝是一个开源 Android 悬浮字幕翻译工具，方便在看不同语言的剧集时学习外语。把扫描框放在视频字幕上方，应用会自动识别画面文字，并把译文显示在扫描框外部上方。
 
+## Teaser
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="static/teaser-step-1.jpg" alt="将扫描框放在字幕上" width="100%" />
+      <br />
+      <sub>1. Set up scan area</sub>
+    </td>
+    <td align="center">
+      <img src="static/teaser-step-2.jpg" alt="确认后隐藏扫描框" width="100%" />
+      <br />
+      <sub>2. Confirm to hide the scan area</sub>
+    </td>
+  </tr>
+</table>
+
 ## 功能
 
 - 悬浮球可以显示在其他应用顶部。启动时为未激活的 100% 不透明状态；点击后进入激活状态并变为 50% 不透明，显示选框并启动 OCR 和翻译；再次点击会隐藏选框并停止 OCR 和翻译。
