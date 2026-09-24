@@ -44,7 +44,7 @@ gradle assembleDebug
 
 ## 持续集成
 
-每次 push 都会触发 `Build APK` GitHub Actions 工作流。它使用 JDK 17 和 Gradle 8.7 构建 debug APK，并上传名为 `scan_translate-debug-<commit-sha>` 的 artifact。打开仓库的 **Actions** 页面，选择对应运行记录，在 **Artifacts** 区域下载 APK。
+每次 push 都会触发 `Build APK` GitHub Actions 工作流。它使用 JDK 17 和 Gradle 8.7 构建 debug APK，并上传名为 `scan_translate-debug-<commit-sha>` 的 artifact。推送到 `main` 时还会在仓库的 **Releases** 页面创建包含 APK 的预发布版本；其他分支的构建可在对应运行记录的 **Artifacts** 区域下载。
 
 ## 开源协议
 

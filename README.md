@@ -44,7 +44,7 @@ The development container used to prepare this repository does not include the J
 
 ## Continuous integration
 
-Every push starts the `Build APK` GitHub Actions workflow. It builds the debug APK with JDK 17 and Gradle 8.7, then uploads it as an artifact named `scan_translate-debug-<commit-sha>`. Open the repository's **Actions** tab, select the run, and download the artifact from the **Artifacts** section.
+Every push starts the `Build APK` GitHub Actions workflow. It builds the debug APK with JDK 17 and Gradle 8.7, then uploads it as an artifact named `scan_translate-debug-<commit-sha>`. Pushes to `main` also publish a prerelease containing the APK under the repository's **Releases** page. Feature-branch builds remain available from the run's **Artifacts** section.
 
 ## License
 
