@@ -72,6 +72,17 @@ class OverlayService : Service() {
     private var lastText = ""
     private var translator: Translator? = null
     private val httpClient = OkHttpClient()
+    private val projectionCallback = object : MediaProjection.Callback() {
+        override fun onStop() {
+            virtualDisplay?.release()
+            virtualDisplay = null
+            imageReader?.close()
+            imageReader = null
+            latestBitmap?.recycle()
+            latestBitmap = null
+            projection = null
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -220,6 +231,7 @@ class OverlayService : Service() {
         if (projection != null) return
         val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         projection = manager.getMediaProjection(resultCode, data)
+        projection!!.registerCallback(projectionCallback, mainHandler)
         val metrics = resources.displayMetrics
         imageReader = ImageReader.newInstance(metrics.widthPixels, metrics.heightPixels, PixelFormat.RGBA_8888, 2)
         imageReader!!.setOnImageAvailableListener({ reader ->
@@ -250,7 +262,9 @@ class OverlayService : Service() {
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
     override fun onDestroy() {
-        scanJob?.cancel(); serviceJob.cancel(); translator?.close(); virtualDisplay?.release(); projection?.stop(); imageReader?.close(); latestBitmap?.recycle()
+        scanJob?.cancel(); serviceJob.cancel(); translator?.close(); virtualDisplay?.release()
+        projection?.unregisterCallback(projectionCallback)
+        projection?.stop(); imageReader?.close(); latestBitmap?.recycle()
         listOf<View?>(ball, scanBox, translationView).forEach { view -> if (view != null) runCatching { windowManager.removeView(view) } }
         super.onDestroy()
     }
