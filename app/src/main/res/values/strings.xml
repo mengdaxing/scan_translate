@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">字幕宝</string>
+    <string name="app_subtitle">scan_translate · 看剧学外语的实时字幕翻译</string>
+    <string name="start_overlay">启动悬浮球</string>
+    <string name="stop_overlay">关闭悬浮球</string>
+    <string name="save_settings">保存设置</string>
+    <string name="source_language">源语言</string>
+    <string name="target_language">目标语言</string>
+    <string name="translation_engine">翻译引擎</string>
+    <string name="deepl_api_key">DeepL API Key（可选）</string>
+    <string name="font_size">字体大小（px）</string>
+    <string name="text_color">文字颜色</string>
+    <string name="ocr_interval">OCR 扫描间隔（毫秒）</string>
+    <string name="display_duration">翻译显示时间（毫秒）</string>
+    <string name="permission_hint">需要“在其他应用上层显示”和屏幕捕获权限，才能识别正在播放的字幕。</string>
+    <string name="start_capture">启动屏幕捕获</string>
+    <string name="confirm">确认</string>
+    <string name="scan_hint">拖动边框移动，拖动右下角调整大小</string>
+</resources>
