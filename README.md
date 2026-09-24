@@ -1,45 +1,47 @@
 # scan_translate · 字幕宝
 
-字幕宝是一个开源 Android 悬浮字幕翻译工具，方便我在看不同语言的剧集时学习外语。它把扫描框放在视频字幕上方，自动识别画面中的文字并把译文显示在扫描框外部上方。
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-## 功能
+`scan_translate` (字幕宝) is an open-source Android overlay for translating subtitles while watching shows in other languages. It was created to make language learning more convenient: place the scan box over the subtitle, and the translated text appears above it.
 
-- 悬浮球可以显示在其他应用顶部，点击后打开或关闭扫描框。
-- 扫描框支持拖动移动和拖动右下角调整大小，并记住上一次的位置和尺寸。
-- 点击扫描框右侧的确认按钮后，扫描框隐藏，开始按配置的间隔持续 OCR。
-- 只有识别文字发生变化时才会请求翻译，避免重复翻译同一行字幕。
-- 默认使用设备上的 ML Kit 本地 OCR 和本地翻译模型；也可以选择 DeepL API 并填写 API Key。
-- 可配置源语言、目标语言、文字大小、文字颜色、OCR 间隔和译文显示时长。
+## Features
 
-## 开始使用
+- A floating ball stays above other apps and toggles the scan box.
+- Drag the scan box to move it, or drag its bottom-right handle to resize it. The last position and size are saved.
+- Confirm the box with the button on its right. The box then hides while OCR continues at the configured interval.
+- A new translation is requested only when the recognized text changes.
+- On-device ML Kit OCR and translation are used by default. DeepL API is also available as an optional engine.
+- Configure source and target languages, font size, text color, OCR interval, and translation display duration.
 
-1. 使用 Android Studio Hedgehog 或更高版本打开项目，等待 Gradle 同步。
-2. 用 Android 8.0（API 26）或更高版本的设备运行。
-3. 在设置页允许“在其他应用上层显示”，并允许屏幕捕获。
-4. 点击悬浮球，拖好扫描框覆盖字幕，点击右侧 `✓` 确认。
-5. 第一次使用本地翻译语言组合时，系统会下载对应的离线模型。建议在 Wi-Fi 下完成下载。
+## Getting started
 
-DeepL 使用 `https://api-free.deepl.com/v2/translate`。API Key 只保存在本机的 SharedPreferences 中，不会上传到本项目。
+1. Open the project in Android Studio Hedgehog or newer and wait for Gradle sync.
+2. Run it on Android 8.0 (API 26) or newer.
+3. In the settings screen, grant the permission to display over other apps and approve screen capture.
+4. Tap the floating ball, position the scan box over the subtitle, and tap `✓`.
+5. The first use of an on-device translation language pair downloads its model. Wi-Fi is recommended for this download.
 
-## 架构
+DeepL requests use `https://api-free.deepl.com/v2/translate`. The API key is stored only in the device's SharedPreferences and is never committed to this repository.
 
-- `MainActivity`：配置页、权限和 MediaProjection 授权。
-- `OverlayService`：前台服务、悬浮球、扫描框、屏幕帧、OCR、翻译和译文显示。
-- `ScanBoxView`：扫描框的移动、缩放和确认交互。
-- `AppPrefs`：所有用户设置和扫描框几何信息的持久化。
+## Architecture
 
-屏幕采集通过 Android MediaProjection 完成，OCR 和本地翻译在设备端执行。应用不会读取或保存完整屏幕截图，只在内存中保留当前帧用于扫描框裁剪。
+- `MainActivity`: settings screen, permissions, and MediaProjection authorization.
+- `OverlayService`: foreground service, floating ball, scan box, screen frames, OCR, translation, and result display.
+- `ScanBoxView`: scan box movement, resizing, and confirmation interaction.
+- `AppPrefs`: persistent user settings and scan box geometry.
 
-## 构建
+Screen capture uses Android MediaProjection. OCR and the default translation engine run on the device. The app does not save full screenshots; it keeps the current frame in memory only long enough to crop the selected scan area.
 
-本项目使用 AGP 8.5.2、Kotlin 2.0.21 和 JDK 17。用 Android Studio 打开项目并等待 Gradle 同步后运行 `app` 配置；如果本机已安装 Gradle，也可以执行：
+## Build
+
+The project uses AGP 8.5.2, Kotlin 2.0.21, and JDK 17. Open it in Android Studio and run the `app` configuration after Gradle sync. If Gradle is installed locally, you can also run:
 
 ```bash
 gradle assembleDebug
 ```
 
-当前开发容器没有预装 JDK 和 Android SDK，因此这里未执行 Gradle 构建；在本地 Android Studio 中同步后即可构建和调试。
+The development container used to prepare this repository does not include the JDK or Android SDK, so a Gradle build was not run here. Android Studio can sync, build, and debug the project locally.
 
-## 开源协议
+## License
 
-本项目使用 MIT License，欢迎提交 Issue 和 Pull Request，一起改进字幕识别和外语学习体验。
+MIT License. Issues and pull requests are welcome.
