@@ -32,10 +32,10 @@ DeepL 使用 `https://api-free.deepl.com/v2/translate`。API Key 只保存在本
 
 ## 构建
 
-本项目使用 AGP 8.5.2、Kotlin 2.0.21 和 JDK 17。执行：
+本项目使用 AGP 8.5.2、Kotlin 2.0.21 和 JDK 17。用 Android Studio 打开项目并等待 Gradle 同步后运行 `app` 配置；如果本机已安装 Gradle，也可以执行：
 
 ```bash
-./gradlew assembleDebug
+gradle assembleDebug
 ```
 
 当前开发容器没有预装 JDK 和 Android SDK，因此这里未执行 Gradle 构建；在本地 Android Studio 中同步后即可构建和调试。
