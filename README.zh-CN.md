@@ -42,6 +42,10 @@ gradle assembleDebug
 
 准备此仓库的开发容器没有预装 JDK 和 Android SDK，因此未执行 Gradle 构建；在本地 Android Studio 中即可同步、构建和调试。
 
+## 持续集成
+
+每次 push 都会触发 `Build APK` GitHub Actions 工作流。它使用 JDK 17 和 Gradle 8.7 构建 debug APK，并上传名为 `scan_translate-debug-<commit-sha>` 的 artifact。打开仓库的 **Actions** 页面，选择对应运行记录，在 **Artifacts** 区域下载 APK。
+
 ## 开源协议
 
 MIT License，欢迎提交 Issue 和 Pull Request。

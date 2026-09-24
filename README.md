@@ -42,6 +42,10 @@ gradle assembleDebug
 
 The development container used to prepare this repository does not include the JDK or Android SDK, so a Gradle build was not run here. Android Studio can sync, build, and debug the project locally.
 
+## Continuous integration
+
+Every push starts the `Build APK` GitHub Actions workflow. It builds the debug APK with JDK 17 and Gradle 8.7, then uploads it as an artifact named `scan_translate-debug-<commit-sha>`. Open the repository's **Actions** tab, select the run, and download the artifact from the **Artifacts** section.
+
 ## License
 
 MIT License. Issues and pull requests are welcome.
